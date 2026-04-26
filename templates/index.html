@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Intelligence — AI News Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1611;--ink-soft:#4a4540;--ink-muted:#8a857e;
+  --paper:#faf8f3;--paper-warm:#f3f0e8;--paper-rule:#e8e3d8;
+  --accent:#c0392b;--accent-soft:#fadbd8;
+  --tag-bg:#2c3e50;--tag-text:#ecf0f1;
+  --green:#1a6b3a;--green-bg:#d5f0e0;
+  --amber:#8b5e00;--amber-bg:#fef3cd;
+  --blue:#1a3a6b;--blue-bg:#d6e4f7;
+  --chat-bg:#f0ede6;--chat-user:#2c3e50;--chat-bot:#fff;
+}
+body{font-family:'Source Serif 4',Georgia,serif;background:var(--paper);color:var(--ink);min-height:100vh}
+
+/* ── MASTHEAD ── */
+.masthead{border-bottom:3px double var(--ink);padding:1.25rem 2rem .9rem;text-align:center}
+.masthead-kicker{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:.3rem}
+.masthead-title{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:900;line-height:1;color:var(--ink);letter-spacing:-.02em}
+.masthead-rule{display:flex;align-items:center;gap:1rem;margin:.6rem 0 .4rem;color:var(--ink-muted);font-size:11px;letter-spacing:.1em}
+.masthead-rule::before,.masthead-rule::after{content:'';flex:1;height:1px;background:var(--ink-muted)}
+
+/* ── STATUS BAR ── */
+.status-bar{font-size:11px;color:var(--ink-muted);padding:.35rem 2rem;background:var(--paper-warm);border-bottom:1px solid var(--paper-rule);display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;flex-shrink:0}
+.dot-green{background:#1a6b3a}.dot-red{background:#c0392b}.dot-amber{background:#d4a017}
+
+/* ── TICKER ── */
+.ticker{background:var(--ink);color:var(--paper);padding:5px 1rem;display:flex;align-items:center;gap:1rem;overflow:hidden}
+.ticker-label{font-family:'Playfair Display',serif;font-weight:700;font-size:11px;background:var(--accent);padding:2px 8px;white-space:nowrap;letter-spacing:.12em;text-transform:uppercase;flex-shrink:0}
+.ticker-text{flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85;letter-spacing:.03em}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:.5rem;padding:.65rem 2rem;border-bottom:1px solid var(--paper-rule);align-items:center;flex-wrap:wrap;background:var(--paper-warm)}
+.toolbar label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)}
+.toolbar select{font-family:'Source Serif 4',serif;font-size:13px;padding:5px 9px;border:1px solid var(--paper-rule);background:var(--paper);color:var(--ink);border-radius:2px;cursor:pointer}
+.btn{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;padding:5px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:2px;cursor:pointer;letter-spacing:.04em;transition:background .15s,border-color .15s;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.toolbar-info{font-size:11px;color:var(--ink-muted);font-style:italic;margin-left:auto}
+
+/* ── MAIN LAYOUT ── */
+.layout{display:grid;grid-template-columns:1fr 340px;gap:0;max-width:1300px;margin:0 auto;min-height:calc(100vh - 220px)}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+/* ── NEWSROOM ── */
+.newsroom{padding:1.25rem 1.5rem 3rem;border-right:1px solid var(--paper-rule);min-width:0}
+.section-head{display:flex;align-items:baseline;gap:1rem;margin:0 0 1rem;padding-bottom:.4rem;border-bottom:2px solid var(--ink)}
+.section-head h2{font-family:'Playfair Display',serif;font-size:.95rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.section-count{font-size:12px;color:var(--ink-muted)}
+
+/* ── NEWS GRID ── */
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--paper-rule);border:1px solid var(--paper-rule)}
+.card{background:var(--paper);padding:1.1rem;display:flex;flex-direction:column;gap:.5rem;transition:background .15s}
+.card:hover{background:var(--paper-warm)}
+.card-meta{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.source-tag{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;background:var(--tag-bg);color:var(--tag-text);padding:2px 6px;border-radius:1px}
+.cat-badge{font-size:9.5px;padding:2px 6px;border-radius:1px;letter-spacing:.07em;text-transform:uppercase}
+.cat-general{background:var(--paper-rule);color:var(--ink-soft)}
+.cat-technology{background:var(--blue-bg);color:var(--blue)}
+.cat-business{background:var(--green-bg);color:var(--green)}
+.cat-health{background:#fde8f0;color:#7b1a45}
+.cat-science{background:#e8f0fd;color:#1a3a7b}
+.cat-sports{background:var(--amber-bg);color:var(--amber)}
+.cat-entertainment{background:#f0e8fd;color:#4a1a7b}
+.card-time{font-size:10.5px;color:var(--ink-muted);margin-left:auto;font-style:italic}
+.card-title{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;line-height:1.3;color:var(--ink)}
+.card-title a{color:inherit;text-decoration:none}
+.card-title a:hover{color:var(--accent)}
+.card-desc{font-size:13px;line-height:1.55;color:var(--ink-soft);font-style:italic;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ai-panel{margin-top:.5rem;padding-top:.6rem;border-top:1px solid var(--paper-rule)}
+.ai-btn{font-family:'Source Serif 4',serif;font-size:11.5px;padding:3px 11px;border:1px solid var(--paper-rule);background:transparent;color:var(--ink-soft);border-radius:2px;cursor:pointer;transition:all .15s}
+.ai-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.ai-btn:disabled{opacity:.5;cursor:not-allowed}
+.ai-result{margin-top:.5rem;font-size:13px;line-height:1.6;color:var(--ink-soft);border-left:3px solid var(--accent);padding-left:.7rem}
+.ai-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:600;margin-bottom:.25rem;display:block}
+.s-row{display:flex;gap:.4rem;margin-top:.4rem;align-items:center;flex-wrap:wrap}
+.pill{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.pill-positive{background:var(--green-bg);color:var(--green)}
+.pill-negative{background:#fadbd8;color:#922b21}
+.pill-neutral{background:var(--paper-warm);color:var(--ink-soft);border:1px solid var(--paper-rule)}
+.pill-mixed{background:var(--amber-bg);color:var(--amber)}
+.key-point{font-size:11.5px;color:var(--ink-muted);font-style:italic}
+
+/* ── DIGEST ── */
+.digest{margin-top:1.5rem;border:2px solid var(--ink);padding:1.25rem;background:var(--paper-warm)}
+.digest-title{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:900;margin-bottom:.2rem}
+.digest-sub{font-size:10.5px;color:var(--ink-muted);letter-spacing:.08em;text-transform:uppercase;padding-bottom:.6rem;margin-bottom:.6rem;border-bottom:1px solid var(--paper-rule)}
+.digest-body{font-size:14.5px;line-height:1.8;color:var(--ink-soft);white-space:pre-wrap}
+
+/* ── CHATBOT SIDEBAR ── */
+.chat-sidebar{display:flex;flex-direction:column;height:calc(100vh - 220px);position:sticky;top:0;background:var(--chat-bg);border-left:1px solid var(--paper-rule)}
+.chat-header{padding:.85rem 1rem;border-bottom:2px solid var(--ink);background:var(--ink);color:var(--paper);display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+.chat-header-icon{font-size:1.1rem}
+.chat-header-title{font-family:'Playfair Display',serif;font-weight:700;font-size:.95rem;letter-spacing:.04em}
+.chat-header-sub{font-size:10px;opacity:.6;font-style:italic;margin-left:auto}
+.chat-messages{flex:1;overflow-y:auto;padding:.85rem 1rem;display:flex;flex-direction:column;gap:.75rem;scroll-behavior:smooth}
+.chat-messages::-webkit-scrollbar{width:4px}
+.chat-messages::-webkit-scrollbar-track{background:transparent}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--paper-rule);border-radius:2px}
+
+/* message bubbles */
+.msg{max-width:88%;display:flex;flex-direction:column;gap:.2rem}
+.msg.user{align-self:flex-end;align-items:flex-end}
+.msg.bot{align-self:flex-start;align-items:flex-start}
+.msg-bubble{padding:.55rem .8rem;border-radius:12px;font-size:13px;line-height:1.55}
+.msg.user .msg-bubble{background:var(--chat-user);color:#ecf0f1;border-bottom-right-radius:3px}
+.msg.bot  .msg-bubble{background:var(--chat-bot);color:var(--ink);border:1px solid var(--paper-rule);border-bottom-left-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.msg-time{font-size:9.5px;color:var(--ink-muted);padding:0 .25rem}
+
+/* suggestion chips */
+.chat-suggestions{padding:.5rem 1rem;display:flex;gap:.4rem;flex-wrap:wrap;flex-shrink:0;border-top:1px solid var(--paper-rule);background:var(--paper-warm)}
+.chip{font-family:'Source Serif 4',serif;font-size:11px;padding:4px 10px;border:1px solid var(--paper-rule);border-radius:12px;background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* input row */
+.chat-input-row{display:flex;gap:.4rem;padding:.7rem 1rem;border-top:1px solid var(--paper-rule);background:var(--paper);flex-shrink:0}
+.chat-input{flex:1;font-family:'Source Serif 4',serif;font-size:13px;padding:7px 10px;border:1px solid var(--paper-rule);border-radius:2px;background:var(--paper);color:var(--ink);resize:none;outline:none;transition:border-color .15s;min-height:36px;max-height:100px}
+.chat-input:focus{border-color:var(--accent)}
+.chat-send{font-family:'Playfair Display',serif;font-size:12px;font-weight:700;padding:7px 14px;border:2px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:2px;cursor:pointer;flex-shrink:0;transition:background .15s}
+.chat-send:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+.chat-send:disabled{opacity:.4;cursor:not-allowed}
+.chat-clear{font-size:11px;color:var(--ink-muted);background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:2px;flex-shrink:0}
+.chat-clear:hover{color:var(--accent)}
+
+/* typing indicator */
+.typing .msg-bubble{display:flex;gap:4px;align-items:center;padding:.6rem .8rem}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--ink-muted);animation:bounce .9s infinite}
+.typing-dot:nth-child(2){animation-delay:.15s}
+.typing-dot:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+
+/* ── SHIMMER ── */
+.shimmer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--paper-rule);border:1px solid var(--paper-rule)}
+.shimmer-card{background:var(--paper);padding:1.1rem;display:flex;flex-direction:column;gap:.55rem}
+.shimmer-line{background:linear-gradient(90deg,var(--paper-rule) 25%,var(--paper-warm) 50%,var(--paper-rule) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:2px}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:3.5rem 2rem;color:var(--ink-muted)}
+.empty-icon{font-size:2.2rem;margin-bottom:.6rem;display:block}
+.empty h3{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:.4rem;color:var(--ink-soft)}
+.empty p{font-size:13.5px;font-style:italic;max-width:340px;margin:0 auto}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--paper-rule);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--ink);color:var(--paper);padding:.6rem 1rem;border-radius:2px;font-size:12.5px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<div class="masthead">
+  <div class="masthead-kicker">Artificial Intelligence &bull; Journalism</div>
+  <div class="masthead-title">The Intelligence</div>
+  <div class="masthead-rule">AI-Powered News Analysis Platform</div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar" id="statusBar">
+  <span id="s-news"><span class="dot dot-amber"></span>NewsAPI: checking…</span>
+  <span id="s-groq"><span class="dot dot-amber"></span>Groq AI: checking…</span>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <span class="ticker-label">Live</span>
+  <span class="ticker-text" id="tickerText">Press "Fetch News" to load the latest headlines</span>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <label>Category</label>
+  <select id="catSelect">
+    <option value="general">General</option>
+    <option value="technology">Technology</option>
+    <option value="business">Business</option>
+    <option value="health">Health</option>
+    <option value="science">Science</option>
+    <option value="sports">Sports</option>
+    <option value="entertainment">Entertainment</option>
+  </select>
+
+  <button class="btn" id="fetchBtn" onclick="fetchNews()">Fetch News</button>
+  <button class="btn ghost" id="digestBtn" onclick="generateDigest()" disabled>AI Digest</button>
+  <span class="toolbar-info" id="toolbarInfo"></span>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: NEWS -->
+  <div class="newsroom">
+    <div id="digestArea"></div>
+    <div class="section-head">
+      <h2>Top Stories</h2>
+      <span class="section-count" id="storyCount"></span>
+    </div>
+    <div id="newsContainer">
+      <div class="empty">
+        <span class="empty-icon">&#128240;</span>
+        <h3>No Stories Loaded</h3>
+        <p>Select a category and country, then press <em>Fetch News</em>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CHATBOT -->
+  <div class="chat-sidebar">
+    <div class="chat-header">
+      <span class="chat-header-icon">&#129302;</span>
+      <div>
+        <div class="chat-header-title">News Assistant</div>
+        <div style="font-size:10px;opacity:.55;margin-top:1px">Ask anything about today's stories</div>
+      </div>
+      <button class="chat-clear" onclick="clearChat()" title="Clear chat">&#10005; Clear</button>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg bot" id="welcomeMsg">
+        <div class="msg-bubble">
+          👋 Hi! I'm your news assistant. Once you fetch some articles, ask me anything — <em>"Summarize the top story"</em>, <em>"What's happening in tech?"</em>, or <em>"Which stories are positive?"</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-suggestions" id="chatSuggestions">
+      <span class="chip" onclick="sendChip(this)">Summarize top story</span>
+      <span class="chip" onclick="sendChip(this)">What's the biggest news?</span>
+      <span class="chip" onclick="sendChip(this)">Any positive news today?</span>
+      <span class="chip" onclick="sendChip(this)">Which story is most important?</span>
+    </div>
+
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chatInput" placeholder="Ask about the news…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+      <button class="chat-send" id="chatSendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── state ── */
+let articles = [];
+let analysisCache = {};
+let chatHistory = [];   // [{role, content}, ...]
+
+/* ── utils ── */
+function toast(msg, ms=2600){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),ms);
+}
+function timeAgo(d){
+  const s=(Date.now()-new Date(d))/1000;
+  if(s<60) return 'just now';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function shimmerHTML(n){
+  const c=`<div class="shimmer-card">
+    <div class="shimmer-line" style="width:28%;height:9px"></div>
+    <div class="shimmer-line" style="width:80%;height:16px;margin-top:4px"></div>
+    <div class="shimmer-line" style="width:95%;height:11px"></div>
+    <div class="shimmer-line" style="width:60%;height:11px"></div>
+  </div>`;
+  return `<div class="shimmer-grid">${Array(n).fill(c).join('')}</div>`;
+}
+function nowTime(){
+  return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ── status check ── */
+async function checkStatus(){
+  try{
+    const d=await fetch('/api/status').then(r=>r.json());
+    document.getElementById('s-news').innerHTML=
+      `<span class="dot ${d.newsApiKeySet?'dot-green':'dot-red'}"></span>
+       NewsAPI: ${d.newsApiKeySet?'key loaded':'key missing — add to .env'}`;
+    document.getElementById('s-groq').innerHTML=
+      `<span class="dot ${d.groqKeySet?'dot-green':'dot-amber'}"></span>
+       Groq AI: ${d.groqKeySet?'key loaded ('+d.groqModel+')':'not set — get free key at console.groq.com'}`;
+  }catch(e){}
+}
+
+/* ── fetch news ── */
+async function fetchNews(){
+  const cat=document.getElementById('catSelect').value;
+  const country='us';
+  const btn=document.getElementById('fetchBtn');
+  btn.disabled=true; btn.textContent='Fetching…';
+  document.getElementById('newsContainer').innerHTML=shimmerHTML(6);
+  document.getElementById('digestArea').innerHTML='';
+  analysisCache={};
+
+  try{
+    const r=await fetch(`/api/news?category=${cat}&country=${country}&pageSize=12`);
+    const data=await r.json();
+    if(data.status!=='ok') throw new Error(data.message||'NewsAPI error');
+
+    articles=data.articles||[];
+    document.getElementById('storyCount').textContent=`${articles.length} stories`;
+    document.getElementById('toolbarInfo').textContent=
+      `Fetched ${new Date().toLocaleTimeString()} via ${data.source==='everything'?'keyword search (free tier)':'top-headlines'}`;
+    if(articles.length){
+      document.getElementById('tickerText').textContent=
+        articles.slice(0,6).map(a=>a.title).join('  —  ');
+      document.getElementById('digestBtn').disabled=false;
+      updateChatSuggestions(cat);
+    }
+    renderCards(articles,cat);
+    toast(`Loaded ${articles.length} stories`);
+  }catch(e){
+    document.getElementById('newsContainer').innerHTML=
+      `<div class="empty"><span class="empty-icon">&#9888;</span><h3>Fetch Failed</h3><p>${e.message}</p></div>`;
+    toast('Fetch failed');
+  }finally{
+    btn.disabled=false; btn.textContent='Fetch News';
+  }
+}
+
+/* ── render cards ── */
+function renderCards(arts,cat){
+  if(!arts.length){
+    document.getElementById('newsContainer').innerHTML=
+      `<div class="empty"><h3>No stories found</h3><p>Try a different category or country.</p></div>`;
+    return;
+  }
+  const html=arts.map((a,i)=>`
+    <div class="card" id="card-${i}">
+      <div class="card-meta">
+        <span class="source-tag">${a.source?.name||'Unknown'}</span>
+        <span class="cat-badge cat-${cat}">${cat}</span>
+        <span class="card-time">${a.publishedAt?timeAgo(a.publishedAt):''}</span>
+      </div>
+      <div class="card-title">
+        <a href="${a.url||'#'}" target="_blank" rel="noopener">${a.title}</a>
+      </div>
+      ${a.description?`<div class="card-desc">${a.description}</div>`:''}
+      <div class="ai-panel">
+        <button class="ai-btn" id="abtn-${i}" onclick="analyzeArticle(${i})">&#10022; Analyze with AI</button>
+        <div id="aresult-${i}"></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('newsContainer').innerHTML=`<div class="news-grid">${html}</div>`;
+}
+
+/* ── per-article AI analysis ── */
+async function analyzeArticle(i){
+  if(analysisCache[i]){
+    document.getElementById(`aresult-${i}`).innerHTML=analysisCache[i];
+    return;
+  }
+  const a=articles[i];
+  const btn=document.getElementById(`abtn-${i}`);
+  const panel=document.getElementById(`aresult-${i}`);
+  btn.disabled=true;
+  panel.innerHTML=`<div style="margin-top:7px;font-size:12px;color:var(--ink-muted)"><span class="spinner"></span>Analyzing…</div>`;
+
+  try{
+    const r=await fetch('/api/analyze',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:a.title||'',description:a.description||'',source:a.source?.name||'Unknown'})
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+
+    const pillCls={positive:'pill-positive',negative:'pill-negative',
+      neutral:'pill-neutral',mixed:'pill-mixed'}[d.sentiment]||'pill-neutral';
+
+    const html=`<div class="ai-result">
+      <span class="ai-label">${d.demo?'Demo Mode':'Groq AI'}</span>
+      <p>${d.summary}</p>
+      <div class="s-row">
+        <span class="pill ${pillCls}">${d.sentiment}</span>
+        <span class="key-point">${d.keyPoint}</span>
+      </div>
+    </div>`;
+    panel.innerHTML=html;
+    analysisCache[i]=html;
+    btn.textContent='&#10022; Re-analyze';
+  }catch(e){
+    panel.innerHTML=`<div style="font-size:12px;color:var(--accent);margin-top:6px;font-style:italic">&#9888; ${e.message}</div>`;
+    btn.textContent='&#10022; Retry';
+  }finally{btn.disabled=false;}
+}
+
+/* ── AI digest ── */
+async function generateDigest(){
+  if(!articles.length) return;
+  const btn=document.getElementById('digestBtn');
+  btn.disabled=true; btn.textContent='Generating…';
+  document.getElementById('digestArea').innerHTML=`
+    <div class="digest">
+      <div class="digest-title">Daily Intelligence Digest</div>
+      <div class="digest-sub">Composing editorial…</div>
+      <div class="digest-body"><span class="spinner"></span> Synthesizing today's stories…</div>
+    </div>`;
+  try{
+    const r=await fetch('/api/digest',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({articles:articles.slice(0,8)})
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    const date=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+    document.getElementById('digestArea').innerHTML=`
+      <div class="digest">
+        <div class="digest-title">Daily Intelligence Digest</div>
+        <div class="digest-sub">Groq AI Editorial &bull; ${date}</div>
+        <div class="digest-body">${d.digest}</div>
+      </div>`;
+    toast('Digest generated');
+  }catch(e){
+    document.getElementById('digestArea').innerHTML=
+      `<div class="digest"><div class="digest-body" style="color:var(--accent)">&#9888; ${e.message}</div></div>`;
+  }finally{
+    btn.disabled=false; btn.textContent='AI Digest';
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   CHATBOT
+───────────────────────────────────────────────────────────────── */
+
+function appendMsg(role, text){
+  const wrap=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className=`msg ${role}`;
+  div.innerHTML=`<div class="msg-bubble">${text}</div><div class="msg-time">${nowTime()}</div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+  return div;
+}
+
+function showTyping(){
+  const wrap=document.getElementById('chatMessages');
+  const div=document.createElement('div');
+  div.className='msg bot typing';
+  div.id='typingIndicator';
+  div.innerHTML=`<div class="msg-bubble">
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
+    <span class="typing-dot"></span>
+  </div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+}
+
+function removeTyping(){
+  const el=document.getElementById('typingIndicator');
+  if(el) el.remove();
+}
+
+async function sendMessage(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();
+  if(!msg) return;
+
+  input.value='';
+  input.style.height='auto';
+  document.getElementById('chatSendBtn').disabled=true;
+
+  appendMsg('user', escapeHtml(msg));
+  chatHistory.push({role:'user', content:msg});
+
+  showTyping();
+
+  try{
+    const r=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message:  msg,
+        history:  chatHistory.slice(-10),
+        articles: articles,
+      })
+    });
+    const d=await r.json();
+    removeTyping();
+
+    const reply=d.reply||d.error||'Sorry, I could not respond.';
+    appendMsg('bot', formatBotReply(reply));
+    chatHistory.push({role:'assistant', content:reply});
+  }catch(e){
+    removeTyping();
+    appendMsg('bot', `&#9888; Error: ${e.message}`);
+  }finally{
+    document.getElementById('chatSendBtn').disabled=false;
+    input.focus();
+  }
+}
+
+function sendChip(el){
+  document.getElementById('chatInput').value=el.textContent;
+  sendMessage();
+}
+
+function clearChat(){
+  chatHistory=[];
+  const wrap=document.getElementById('chatMessages');
+  wrap.innerHTML=`<div class="msg bot" id="welcomeMsg">
+    <div class="msg-bubble">Chat cleared! Ask me anything about the loaded news articles.</div>
+  </div>`;
+}
+
+function escapeHtml(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatBotReply(text){
+  // Convert **bold** and line breaks for nicer display
+  return escapeHtml(text)
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/\n/g,'<br>')
+    .replace(/^(.+)$/,'<p>$1</p>');
+}
+
+function updateChatSuggestions(cat){
+  const suggestions={
+    general:       ['Summarize top story','Any breaking news?','Most important story?','Any positive news?'],
+    technology:    ['Latest in AI?','Biggest tech story?','Any new product launches?','Summarize top story'],
+    business:      ['Market highlights?','Any economic concerns?','Best business story?','Summarize top story'],
+    health:        ['Any health warnings?','Latest medical news?','Positive health stories?','Summarize top story'],
+    science:       ['Biggest discovery?','Any space news?','Summarize top story','Most exciting finding?'],
+    sports:        ['Who won recently?','Top sports story?','Any upsets today?','Summarize top story'],
+    entertainment: ['Top entertainment news?','Any movie news?','Music highlights?','Summarize top story'],
+  };
+  const chips=suggestions[cat]||suggestions.general;
+  document.getElementById('chatSuggestions').innerHTML=
+    chips.map(c=>`<span class="chip" onclick="sendChip(this)">${c}</span>`).join('');
+}
+
+/* ── init ── */
+checkStatus();
+</script>
+</body>
+</html>
