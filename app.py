@@ -6,7 +6,7 @@ News API: NewsAPI.org  — free at newsapi.org
 AI API  : Groq         — free at console.groq.com (no credit card needed)
 
 Features:
-  - Fetch trending news by category & country
+  - Fetch trending news by category 
   - AI analysis (summary, sentiment, key point) per article
   - AI editorial digest across all headlines
   - News chatbot — ask anything about the loaded articles
@@ -87,21 +87,22 @@ def fetch_news(category="general", country="us", page_size=12, api_key=""):
     def clean(arts):
         return [a for a in arts if a.get("title") and a["title"] != "[Removed]"]
 
-    # Try paid endpoint first
+    # Try top-headlines endpoint first for standard categories
     try:
-        r = requests.get(NEWSAPI_HEADLINES, params={
-            "country": country, "category": category,
-            "pageSize": page_size, "apiKey": key,
-        }, timeout=10)
-        data = r.json()
-        if data.get("status") == "ok":
-            data["articles"] = clean(data.get("articles", []))
-            data["source"] = "top-headlines"
-            return data
+        if category in CATEGORY_KEYWORDS:
+            r = requests.get(NEWSAPI_HEADLINES, params={
+                "country": country, "category": category,
+                "pageSize": page_size, "apiKey": key,
+            }, timeout=10)
+            data = r.json()
+            if data.get("status") == "ok":
+                data["articles"] = clean(data.get("articles", []))
+                data["source"] = "top-headlines"
+                return data
     except Exception:
         pass
 
-    # Free tier fallback
+    # Free tier fallback & Custom Topic Search
     try:
         query = CATEGORY_KEYWORDS.get(category, category)
         r = requests.get(NEWSAPI_EVERYTHING, params={
@@ -190,18 +191,30 @@ def build_news_context(articles: list) -> str:
     return "\n\n".join(lines)
 
 
-CHATBOT_SYSTEM = """You are a helpful news assistant. You have access to a set of currently loaded news articles provided in the context below. Your job is to:
-- Answer questions about these specific news articles
-- Summarize individual stories when asked
-- Compare or group stories by topic
-- Explain what's happening in simple terms
-- Answer follow-up questions about any article
+CHATBOT_SYSTEM = """You are a helpful, dynamic news assistant. You have access to a set of currently loaded news articles provided in the context below.
 
-Rules:
-- Only discuss the news articles provided. Do not make up information.
-- If the user asks about something not in the articles, politely say it's not in the current feed.
-- Keep answers concise and clear.
-- When referencing an article, mention the source name.
+Your duties:
+1. Answer questions about the provided news articles.
+2. Summarize, compare, or explain stories when asked.
+
+CRITICAL RULE FOR OUT-OF-CONTEXT NEWS REQUESTS:
+If the user asks for news, updates, or information about a topic, entity, or event that is NOT covered in the currently loaded articles, you must NOT hallucinate or rely on outdated knowledge.
+Instead, you MUST ask the system to fetch the latest news on that topic by outputting exactly and ONLY this command:
+FETCH_NEWS: <Search Topic>
+
+Example 1:
+User: "What's the latest on Apple?" (if Apple is not in the context)
+You: FETCH_NEWS: Apple
+
+Example 2:
+User: "Tell me about the recent elections in India" (if not in context)
+You: FETCH_NEWS: India elections
+
+Example 3:
+User: "Summarize the first article" (if in context)
+You: [Normal summary of the first article]
+
+Keep normal answers concise and clear. When referencing an article, mention its source name.
 """
 
 
@@ -226,7 +239,34 @@ def chatbot_reply(user_message: str, history: list, articles: list) -> str:
     ]
 
     try:
-        return groq_chat(messages, max_tokens=600)
+        reply = groq_chat(messages, max_tokens=600)
+        
+        # Check if the model requested to fetch new news
+        if "FETCH_NEWS:" in reply:
+            parts = reply.split("FETCH_NEWS:")
+            topic = parts[1].strip().strip("<>[]\"'")
+            
+            # Fetch new news for this topic
+            new_data = fetch_news(category=topic, page_size=5)
+            new_articles = new_data.get("articles", [])
+            
+            if new_articles:
+                new_context = build_news_context(new_articles)
+                messages.append({"role": "assistant", "content": reply})
+                messages.append({
+                    "role": "system", 
+                    "content": f"System: I have successfully fetched the latest news for '{topic}'. Here they are:\n\n{new_context}\n\nPlease answer the user's question using this newly fetched information."
+                })
+                reply = groq_chat(messages, max_tokens=600)
+            else:
+                messages.append({"role": "assistant", "content": reply})
+                messages.append({
+                    "role": "system", 
+                    "content": f"System: I tried to fetch news for '{topic}', but no recent articles were found. Please inform the user gracefully."
+                })
+                reply = groq_chat(messages, max_tokens=600)
+
+        return reply
     except Exception as e:
         return f"Sorry, I couldn't process that: {e}"
 
@@ -255,7 +295,7 @@ def api_status():
 def api_news():
     data = fetch_news(
         category  = request.args.get("category", "general"),
-        country   = request.args.get("country",  "us"),
+        country   = request.args.get("country",  "india"),
         page_size = int(request.args.get("pageSize", 12)),
         api_key   = request.args.get("apiKey", ""),
     )
